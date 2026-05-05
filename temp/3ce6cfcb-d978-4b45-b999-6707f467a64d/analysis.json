@@ -1,0 +1,82 @@
+[
+  {
+    "timestamp_sec": 0.0,
+    "frame_index": 0,
+    "description": "A fluffy ginger cat sits on a plaid couch with its tongue peeking out, while a human hand reaches toward its front paw.",
+    "score": 6,
+    "tags": [
+      "cat",
+      "pet",
+      "cute",
+      "interaction",
+      "couch",
+      "tongue out",
+      "ginger cat"
+    ],
+    "tokens_used": 1295
+  },
+  {
+    "timestamp_sec": 2.0,
+    "frame_index": 1,
+    "description": "A cream-colored cat with a red collar lies on a geometric-patterned couch, staring intently at a person's moving hand while on-screen text reads 'That looks difficult!'",
+    "score": 6,
+    "tags": [
+      "cat",
+      "pet",
+      "curious",
+      "cute",
+      "animal reaction",
+      "text overlay",
+      "humor"
+    ],
+    "tokens_used": 980
+  },
+  {
+    "timestamp_sec": 4.0,
+    "frame_index": 2,
+    "description": "An orange cat lies on a patterned sofa with its paw resting on a coin while licking its nose.",
+    "score": 6,
+    "tags": [
+      "cat",
+      "pet",
+      "coin",
+      "cute",
+      "sofa",
+      "animal"
+    ],
+    "tokens_used": 1022
+  },
+  {
+    "timestamp_sec": 6.0,
+    "frame_index": 3,
+    "description": "A ginger cat rests on a patterned bedspread with its paw placed on a coin, looking down intently as on-screen text reads, 'I'm gonna give it a go!'",
+    "score": 6,
+    "tags": [
+      "cat",
+      "coin",
+      "pet",
+      "cute",
+      "text overlay",
+      "animal",
+      " humor"
+    ],
+    "tokens_used": 998
+  },
+  {
+    "timestamp_sec": 8.0,
+    "frame_index": 4,
+    "description": "A fluffy ginger cat rests on a geometric-patterned bedspread with a silver coin balanced on its front paw, licking its lips as if guarding its treasure.",
+    "score": 7,
+    "tags": [
+      "cat",
+      "coin",
+      "money",
+      "cute",
+      "ginger cat",
+      "pet",
+      "humor",
+      "bed"
+    ],
+    "tokens_used": 857
+  }
+]

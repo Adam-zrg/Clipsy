@@ -1,0 +1,2 @@
+file 'C:\Codes\Clipsy\temp\60f89596-750a-4e42-8b9b-8e081409a4e5\clip_000.mp4'
+file 'C:\Codes\Clipsy\temp\60f89596-750a-4e42-8b9b-8e081409a4e5\clip_001.mp4'

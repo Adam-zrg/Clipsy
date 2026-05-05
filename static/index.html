@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clipsy — Video Highlighter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a1a;
+      --card2: #222;
+      --border: #2e2e2e;
+      --accent: #7c3aed;
+      --accent-soft: #4c1d95;
+      --accent-glow: rgba(124,58,237,.25);
+      --text: #e5e5e5;
+      --muted: #888;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warn: #f59e0b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.6; }
+    body { display: flex; flex-direction: column; align-items: center; padding: 24px 16px 64px; }
+
+    /* ── Header ── */
+    header { width: 100%; max-width: 860px; margin-bottom: 28px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    header .title-group h1 { font-size: 1.7rem; font-weight: 700; }
+    header .title-group h1 span { color: var(--accent); }
+    header .title-group p { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+
+    /* ── Settings toggle button ── */
+    #settings-toggle {
+      flex-shrink: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 7px 11px;
+      transition: border-color .2s, color .2s;
+      line-height: 1;
+    }
+    #settings-toggle:hover, #settings-toggle.open { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Settings drawer ── */
+    #settings-drawer {
+      width: 100%;
+      max-width: 860px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    #settings-drawer.open { display: block; }
+
+    .settings-card {
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+    .settings-card h2 { font-size: .85rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 16px; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .settings-grid { grid-template-columns: 1fr; } }
+    .settings-grid .full { grid-column: 1 / -1; }
+
+    .field-wrap { display: flex; flex-direction: column; gap: 5px; }
+    .field-wrap label { font-size: .8rem; color: var(--muted); }
+
+    .input-with-btn { display: flex; gap: 6px; }
+    .input-with-btn input { flex: 1; min-width: 0; }
+
+    .badge-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: .78rem; color: var(--muted); }
+    .badge.ok { border-color: var(--success); color: var(--success); }
+    .badge.warn { border-color: var(--warn); color: var(--warn); }
+
+    /* ── Common ── */
+    .section { width: 100%; max-width: 860px; margin-bottom: 20px; }
+    .hidden { display: none !important; }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .card h2 { font-size: 1rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 16px; }
+
+    /* ── Drop zone ── */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    #drop-zone.drag-over { border-color: var(--accent); background: var(--accent-glow); }
+    #drop-zone .icon { font-size: 2.4rem; margin-bottom: 8px; }
+    #drop-zone p { color: var(--muted); font-size: .9rem; }
+    #drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    #file-info { display: none; align-items: center; gap: 10px; margin-top: 10px; background: var(--card2); border-radius: 8px; padding: 10px 14px; font-size: .88rem; }
+    #file-info.show { display: flex; }
+    #file-info .fname { font-weight: 600; color: var(--text); word-break: break-all; }
+    #file-info .fsize { color: var(--muted); }
+
+    /* ── Inputs ── */
+    textarea, input[type=text], input[type=password], input[type=url] {
+      width: 100%;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 13px;
+      font-size: .92rem;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+    textarea:focus, input:focus { border-color: var(--accent); }
+    label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: 8px; font-size: .9rem; font-weight: 600;
+      cursor: pointer; border: none; transition: filter .15s, opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline.active { border-color: var(--accent); color: var(--accent); }
+    .btn-success { background: var(--success); color: #0f0f0f; }
+    .btn-sm { padding: 6px 12px; font-size: .82rem; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+    /* ── Spinner ── */
+    .spinner { width: 17px; height: 17px; border: 2px solid rgba(255,255,255,.2); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Status banner ── */
+    #status-banner { display: none; align-items: center; gap: 10px; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: .9rem; width: 100%; max-width: 860px; }
+    #status-banner.show { display: flex; }
+    #status-banner.error { border-color: var(--danger); color: var(--danger); }
+
+    /* ── Progress bar ── */
+    .progress-wrap { background: var(--card2); border-radius: 6px; height: 6px; overflow: hidden; margin-top: 12px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 6px; width: 0%; transition: width .4s; }
+
+    /* ── Timeline ── */
+    #timeline-wrap { overflow-x: auto; border-radius: 8px; padding-bottom: 4px; margin-bottom: 16px; }
+    #timeline { display: flex; height: 52px; min-width: 100%; gap: 1px; border-radius: 6px; overflow: hidden; position: relative; cursor: crosshair; }
+    .t-block { flex-shrink: 0; position: relative; transition: opacity .15s; }
+    .t-block:hover { opacity: .75; }
+    .t-block.selected { outline: 2px solid #fff; outline-offset: -2px; }
+    #tl-tooltip { position: fixed; background: #0a0a0a; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: .78rem; max-width: 240px; pointer-events: none; z-index: 100; display: none; line-height: 1.5; }
+    #tl-tooltip .ts { color: var(--accent); font-weight: 700; margin-bottom: 2px; }
+    #tl-tooltip .score-pill { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: .72rem; font-weight: 700; margin-bottom: 4px; }
+
+    /* ── Segment list ── */
+    .seg-item { display: flex; align-items: flex-start; gap: 10px; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: .88rem; }
+    .seg-num { color: var(--accent); font-weight: 700; min-width: 26px; }
+    .seg-times { font-family: monospace; color: var(--text); white-space: nowrap; }
+    .seg-reason { color: var(--muted); flex: 1; }
+    .seg-dur { color: var(--warn); font-size: .8rem; font-weight: 600; white-space: nowrap; }
+
+    /* ── Stats ── */
+    .stats-row { display: flex; gap: 16px; flex-wrap: wrap; background: var(--card2); border-radius: 8px; padding: 12px 16px; font-size: .85rem; }
+    .stat-item { display: flex; flex-direction: column; gap: 2px; }
+    .stat-label { color: var(--muted); font-size: .75rem; }
+    .stat-value { color: var(--text); font-weight: 600; }
+    .stat-value.accent { color: var(--accent); }
+
+    #duration-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 20px; padding: 4px 12px; font-size: .83rem; font-weight: 600; color: #c4b5fd; margin-bottom: 10px; }
+
+    #preview-player { width: 100%; border-radius: 8px; background: #000; margin-top: 12px; display: none; }
+    #preview-player.show { display: block; }
+
+    #output-card { text-align: center; }
+    .compression-bar-wrap { margin-top: 16px; }
+    .compression-label { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
+    .compression-bar { height: 10px; background: var(--card2); border-radius: 6px; overflow: hidden; }
+    .compression-fill { height: 100%; background: linear-gradient(90deg, var(--success), var(--accent)); border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ─── -->
+<header>
+  <div class="title-group">
+    <h1>Clipsy <span>Highlighter</span></h1>
+    <p>Drop a video · describe what you want · get an AI-edited highlight reel</p>
+  </div>
+  <button id="settings-toggle" title="AI Settings">⚙</button>
+</header>
+
+<!-- ─── Settings drawer ─── -->
+<div id="settings-drawer">
+  <div class="settings-card">
+    <h2>⚙ AI Settings</h2>
+    <div class="settings-grid">
+      <div class="field-wrap full">
+        <label for="s-apikey">API Key</label>
+        <div class="input-with-btn">
+          <input type="password" id="s-apikey" placeholder="sk-…  (stored in localStorage, never sent to any server other than the AI provider)" autocomplete="off" />
+          <button class="btn btn-outline btn-sm" id="toggle-key-vis" type="button">👁</button>
+        </div>
+      </div>
+      <div class="field-wrap">
+        <label for="s-model">Model ID</label>
+        <input type="text" id="s-model" placeholder="kimi-k2" />
+      </div>
+      <div class="field-wrap">
+        <label for="s-baseurl">Base URL</label>
+        <input type="url" id="s-baseurl" placeholder="https://api.moonshot.cn/v1" />
+      </div>
+    </div>
+    <div class="badge-row">
+      <div class="badge" id="key-badge">🔑 No key set</div>
+      <div class="badge" id="model-badge">🤖 kimi-k2</div>
+      <button class="btn btn-primary btn-sm" id="save-settings" style="margin-left:auto">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Status banner ─── -->
+<div id="status-banner">
+  <div class="spinner" id="banner-spinner"></div>
+  <span id="banner-text">Analyzing…</span>
+</div>
+
+<!-- ─── SECTION 1: Upload ─── -->
+<section class="section" id="upload-section">
+  <div class="card">
+    <h2>Upload</h2>
+    <div id="drop-zone">
+      <div class="icon">🎬</div>
+      <p>Drag &amp; drop a video file here, or click to browse</p>
+      <p style="font-size:.8rem;margin-top:6px;color:#555">MP4, MOV, MKV, AVI…</p>
+      <input type="file" id="file-input" accept="video/*" />
+    </div>
+    <div id="file-info">
+      <span>📄</span>
+      <span class="fname" id="file-name"></span>
+      <span class="fsize" id="file-size"></span>
+    </div>
+
+    <label for="prompt-input" style="margin-top:16px">Editing prompt</label>
+    <textarea id="prompt-input" rows="2" placeholder="Make a 30 second highlight reel of the best moments"></textarea>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="analyze-btn" disabled>✨ Analyze</button>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SECTION 2: Analysis results ─── -->
+<section class="section hidden" id="analysis-section">
+  <div class="stats-row" id="info-bar" style="margin-bottom:16px">
+    <div class="stat-item">
+      <span class="stat-label">Original duration</span>
+      <span class="stat-value" id="stat-orig-dur">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Frames analyzed</span>
+      <span class="stat-value" id="stat-frames">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Model used</span>
+      <span class="stat-value accent" id="stat-model">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Est. API cost</span>
+      <span class="stat-value" id="stat-cost">—</span>
+    </div>
+    <div class="stat-item" style="flex:1">
+      <span class="stat-label">Reasoning</span>
+      <span class="stat-value" id="stat-reasoning" style="font-weight:400;font-size:.83rem;color:var(--muted)">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scene timeline <span style="font-size:.8rem;font-weight:400;color:var(--muted)">(hover · green = high score · white outline = selected)</span></h2>
+    <div id="timeline-wrap"><div id="timeline"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Cut plan</h2>
+    <div id="duration-badge"><span>⏱</span><span id="total-dur-label">0s total</span></div>
+    <div id="seg-list"></div>
+    <label style="margin-top:14px">Edit plan JSON <span style="color:var(--muted);font-weight:400">(changes reflected above)</span></label>
+    <textarea id="plan-editor" rows="12" spellcheck="false" style="font-family:monospace;font-size:.8rem"></textarea>
+    <p id="plan-parse-error" style="color:var(--danger);font-size:.8rem;margin-top:6px;display:none"></p>
+  </div>
+</section>
+
+<!-- ─── SECTION 3: Actions ─── -->
+<section class="section hidden" id="actions-section">
+  <div class="card">
+    <h2>Output</h2>
+    <div class="btn-row">
+      <button class="btn btn-outline active" id="preview-btn">▶ Preview in browser</button>
+      <button class="btn btn-primary" id="render-btn">🎞 Render video</button>
+    </div>
+    <video id="preview-player" controls></video>
+    <div class="progress-wrap hidden" id="render-progress-wrap" style="margin-top:14px">
+      <div class="progress-bar" id="render-progress-bar"></div>
+    </div>
+    <p id="render-status-text" style="font-size:.82rem;color:var(--muted);margin-top:8px;display:none"></p>
+  </div>
+</section>
+
+<!-- ─── SECTION 4: Download ─── -->
+<section class="section hidden" id="output-section">
+  <div class="card" id="output-card">
+    <h2>Your highlight reel is ready</h2>
+    <div class="btn-row" style="justify-content:center;margin-bottom:20px">
+      <a id="dl-btn" class="btn btn-success" download>⬇ Download MP4</a>
+    </div>
+    <div class="stats-row" style="justify-content:center">
+      <div class="stat-item" style="align-items:center">
+        <span class="stat-label">Original</span>
+        <span class="stat-value" id="out-orig-dur">—</span>
+      </div>
+      <div class="stat-item" style="align-items:center">
+        <span class="stat-label">Highlight</span>
+        <span class="stat-value accent" id="out-hl-dur">—</span>
+      </div>
+      <div class="stat-item" style="align-items:center">
+        <span class="stat-label">Compression</span>
+        <span class="stat-value" id="out-ratio">—</span>
+      </div>
+      <div class="stat-item" style="align-items:center">
+        <span class="stat-label">API cost</span>
+        <span class="stat-value" id="out-cost">—</span>
+      </div>
+    </div>
+    <div class="compression-bar-wrap">
+      <div class="compression-label"><span>Highlight portion</span><span id="compression-pct">0%</span></div>
+      <div class="compression-bar"><div class="compression-fill" id="compression-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+</section>
+
+<div id="tl-tooltip"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+
+// ════════════════════════════════════════════════════════════
+//  Settings — persisted in localStorage
+// ════════════════════════════════════════════════════════════
+const LS_KEY = 'clipsy_settings';
+
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }
+}
+function saveSettings(s) { localStorage.setItem(LS_KEY, JSON.stringify(s)); }
+
+function getSettings() {
+  const s = loadSettings();
+  return {
+    apiKey:  s.apiKey  || '',
+    model:   s.model   || 'kimi-k2',
+    baseUrl: s.baseUrl || 'https://api.moonshot.cn/v1',
+  };
+}
+
+function applySettingsToUI() {
+  const s = getSettings();
+  $('s-apikey').value  = s.apiKey;
+  $('s-model').value   = s.model   || 'kimi-k2';
+  $('s-baseurl').value = s.baseUrl || 'https://api.moonshot.cn/v1';
+  updateBadges(s);
+}
+
+function updateBadges(s) {
+  const kb = $('key-badge');
+  const mb = $('model-badge');
+  if (s.apiKey) {
+    kb.textContent = '🔑 Key set (' + s.apiKey.slice(0, 6) + '…)';
+    kb.className = 'badge ok';
+  } else {
+    kb.textContent = '🔑 No key — will use server .env';
+    kb.className = 'badge warn';
+  }
+  mb.textContent = '🤖 ' + (s.model || 'kimi-k2');
+  mb.className = 'badge ok';
+}
+
+// Settings toggle
+const settingsDrawer = $('settings-drawer');
+$('settings-toggle').addEventListener('click', () => {
+  const open = settingsDrawer.classList.toggle('open');
+  $('settings-toggle').classList.toggle('open', open);
+});
+
+// Show/hide API key
+$('toggle-key-vis').addEventListener('click', () => {
+  const inp = $('s-apikey');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+
+// Save settings
+$('save-settings').addEventListener('click', () => {
+  const s = {
+    apiKey:  $('s-apikey').value.trim(),
+    model:   $('s-model').value.trim() || 'kimi-k2',
+    baseUrl: $('s-baseurl').value.trim() || 'https://api.moonshot.cn/v1',
+  };
+  saveSettings(s);
+  updateBadges(s);
+  // Visual feedback
+  const btn = $('save-settings');
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+});
+
+// ════════════════════════════════════════════════════════════
+//  State
+// ════════════════════════════════════════════════════════════
+let jobId = null;
+let analysis = [];
+let cutPlan = {};
+let videoDuration = 0;
+let currentFile = null;
+let pollInterval = null;
+let previewSegments = [];
+let previewSegIdx = 0;
+
+// ════════════════════════════════════════════════════════════
+//  Helpers
+// ════════════════════════════════════════════════════════════
+function fmtSec(s) {
+  s = Math.round(s);
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return m > 0 ? `${m}m ${ss}s` : `${s}s`;
+}
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+function scoreToColor(score) {
+  const hue = ((score - 1) / 9) * 120;
+  return `hsl(${hue.toFixed(0)}, 80%, 45%)`;
+}
+function setBanner(text, loading = true, error = false) {
+  const b = $('status-banner');
+  b.classList.toggle('error', error);
+  b.classList.add('show');
+  $('banner-spinner').style.display = loading ? '' : 'none';
+  $('banner-text').textContent = text;
+}
+function clearBanner() { $('status-banner').classList.remove('show', 'error'); }
+
+// ════════════════════════════════════════════════════════════
+//  Drop zone
+// ════════════════════════════════════════════════════════════
+const dropZone = $('drop-zone');
+const fileInput = $('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  currentFile = f;
+  $('file-name').textContent = f.name;
+  $('file-size').textContent = fmtBytes(f.size);
+  $('file-info').classList.add('show');
+  dropZone.querySelector('p').textContent = 'File selected — drop another to change';
+  $('analyze-btn').disabled = false;
+}
+
+// ════════════════════════════════════════════════════════════
+//  Analyze
+// ════════════════════════════════════════════════════════════
+$('analyze-btn').addEventListener('click', async () => {
+  if (!currentFile) return;
+  const prompt = $('prompt-input').value.trim() || 'Make a 30 second highlight reel of the best moments';
+  const cfg = getSettings();
+
+  $('analyze-btn').disabled = true;
+  setBanner('Uploading & extracting frames…');
+
+  const fd = new FormData();
+  fd.append('video', currentFile);
+  fd.append('prompt', prompt);
+  fd.append('api_key', cfg.apiKey);
+  fd.append('model', cfg.model);
+  fd.append('base_url', cfg.baseUrl);
+
+  try {
+    setBanner('Analyzing scenes with ' + cfg.model + '…');
+    const res = await fetch('/analyze', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail));
+    }
+    const data = await res.json();
+    jobId = data.job_id;
+    analysis = data.analysis || [];
+    cutPlan = data.cut_plan || {};
+    videoDuration = data.video_duration_sec || 0;
+
+    renderAnalysis(data);
+    clearBanner();
+    show('analysis-section');
+    show('actions-section');
+  } catch (e) {
+    setBanner('Error: ' + e.message, false, true);
+    $('analyze-btn').disabled = false;
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+//  Render analysis
+// ════════════════════════════════════════════════════════════
+function renderAnalysis(data) {
+  $('stat-orig-dur').textContent = fmtSec(data.video_duration_sec || 0);
+  $('stat-frames').textContent = (data.frame_count || data.analysis?.length || 0) + ' frames';
+  $('stat-model').textContent = data.model || '—';
+  $('stat-cost').textContent = data.estimated_cost_usd != null ? `$${data.estimated_cost_usd.toFixed(5)}` : '—';
+  $('stat-reasoning').textContent = data.cut_plan?.reasoning || '—';
+
+  renderTimeline(data.analysis || [], data.cut_plan, data.video_duration_sec);
+  renderCutPlan(data.cut_plan);
+}
+
+function renderTimeline(frames, plan, totalDur) {
+  const tl = $('timeline');
+  tl.innerHTML = '';
+  if (!frames.length) return;
+
+  const segSet = new Set((plan?.segments || []).flatMap(s => {
+    const out = [];
+    for (let t = s.start_sec; t < s.end_sec; t += 2) out.push(Math.round(t));
+    return out;
+  }));
+
+  frames.forEach(f => {
+    const block = document.createElement('div');
+    block.className = 't-block' + (segSet.has(Math.round(f.timestamp_sec)) ? ' selected' : '');
+    const pct = totalDur > 0 ? (2 / totalDur) * 100 : (100 / frames.length);
+    block.style.cssText = `width:${pct}%;background:${scoreToColor(f.score)};height:100%;`;
+    block.addEventListener('mouseenter', e => showTooltip(e, f));
+    block.addEventListener('mousemove', moveTooltip);
+    block.addEventListener('mouseleave', hideTooltip);
+    tl.appendChild(block);
+  });
+}
+
+const tooltip = $('tl-tooltip');
+function showTooltip(e, frame) {
+  tooltip.innerHTML = `
+    <div class="ts">${fmtSec(frame.timestamp_sec)}</div>
+    <span class="score-pill" style="background:${scoreToColor(frame.score)};color:#fff">Score ${frame.score}/10</span>
+    <div>${frame.description || ''}</div>
+    ${frame.tags?.length ? `<div style="margin-top:4px;color:var(--muted)">${frame.tags.map(t => '#' + t).join(' ')}</div>` : ''}
+  `;
+  tooltip.style.display = 'block';
+  moveTooltip(e);
+}
+function moveTooltip(e) {
+  const x = e.clientX + 14, y = e.clientY + 14;
+  const w = tooltip.offsetWidth;
+  tooltip.style.left = (x + w > window.innerWidth ? x - w - 28 : x) + 'px';
+  tooltip.style.top = y + 'px';
+}
+function hideTooltip() { tooltip.style.display = 'none'; }
+
+function renderCutPlan(plan) {
+  cutPlan = plan || {};
+  const segs = cutPlan.segments || [];
+  const total = segs.reduce((s, seg) => s + (seg.end_sec - seg.start_sec), 0);
+  $('total-dur-label').textContent = `${total.toFixed(1)}s total · ${segs.length} segment${segs.length !== 1 ? 's' : ''}`;
+
+  const list = $('seg-list');
+  list.innerHTML = '';
+  segs.forEach((seg, i) => {
+    const dur = seg.end_sec - seg.start_sec;
+    const item = document.createElement('div');
+    item.className = 'seg-item';
+    item.innerHTML = `
+      <span class="seg-num">#${i + 1}</span>
+      <span class="seg-times">${seg.start_sec.toFixed(1)}s → ${seg.end_sec.toFixed(1)}s</span>
+      <span class="seg-reason">${seg.reason || ''}</span>
+      <span class="seg-dur">${dur.toFixed(1)}s</span>
+    `;
+    list.appendChild(item);
+  });
+
+  $('plan-editor').value = JSON.stringify(cutPlan, null, 2);
+}
+
+$('plan-editor').addEventListener('input', () => {
+  const err = $('plan-parse-error');
+  try {
+    const parsed = JSON.parse($('plan-editor').value);
+    err.style.display = 'none';
+    cutPlan = parsed;
+    renderCutPlan(parsed);
+    if (analysis.length) renderTimeline(analysis, parsed, videoDuration);
+  } catch (e) {
+    err.textContent = '⚠ Invalid JSON: ' + e.message;
+    err.style.display = '';
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+//  Preview
+// ════════════════════════════════════════════════════════════
+const video = $('preview-player');
+
+$('preview-btn').addEventListener('click', () => {
+  previewSegments = (cutPlan.segments || []).map(s => ({ start: +s.start_sec, end: +s.end_sec }));
+  if (!previewSegments.length) return;
+  video.src = `/video/${jobId}`;
+  video.classList.add('show');
+  previewSegIdx = 0;
+  video.currentTime = previewSegments[0].start;
+  video.play();
+});
+
+video.addEventListener('timeupdate', () => {
+  if (!previewSegments.length) return;
+  const seg = previewSegments[previewSegIdx];
+  if (!seg || video.currentTime < seg.end) return;
+  previewSegIdx++;
+  if (previewSegIdx < previewSegments.length) {
+    video.currentTime = previewSegments[previewSegIdx].start;
+  } else {
+    video.pause();
+    previewSegIdx = 0;
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+//  Render
+// ════════════════════════════════════════════════════════════
+$('render-btn').addEventListener('click', async () => {
+  if (!jobId || !cutPlan.segments) return;
+  video.classList.remove('show');
+  const cfg = getSettings();
+
+  $('render-btn').disabled = true;
+  show('render-progress-wrap');
+  $('render-progress-bar').style.width = '5%';
+  $('render-status-text').style.display = '';
+  $('render-status-text').textContent = 'Starting render…';
+  setBanner('Rendering with ffmpeg…');
+
+  try {
+    const res = await fetch('/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: jobId,
+        cut_plan: cutPlan,
+        api_key: cfg.apiKey,
+        model: cfg.model,
+        base_url: cfg.baseUrl,
+      }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(JSON.stringify(e.detail || e));
+    }
+    pollRenderStatus();
+  } catch (e) {
+    setBanner('Render error: ' + e.message, false, true);
+    $('render-btn').disabled = false;
+  }
+});
+
+function pollRenderStatus() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      const data = await fetch(`/status/${jobId}`).then(r => r.json());
+      $('render-progress-bar').style.width = Math.max(10, data.render_progress || 0) + '%';
+      $('render-status-text').textContent = 'Status: ' + data.status;
+
+      if (data.status === 'done') {
+        clearInterval(pollInterval);
+        clearBanner();
+        $('render-progress-bar').style.width = '100%';
+        showOutput(data);
+      } else if (data.status === 'error') {
+        clearInterval(pollInterval);
+        setBanner('Render failed: ' + data.error, false, true);
+        $('render-btn').disabled = false;
+      }
+    } catch { /* ignore transient */ }
+  }, 2000);
+}
+
+// ════════════════════════════════════════════════════════════
+//  Output
+// ════════════════════════════════════════════════════════════
+function showOutput(statusData) {
+  show('output-section');
+  const hlDur = (cutPlan.segments || []).reduce((s, seg) => s + (seg.end_sec - seg.start_sec), 0);
+  const ratio = videoDuration > 0 ? hlDur / videoDuration : 0;
+  const pct = (ratio * 100).toFixed(1);
+
+  $('out-orig-dur').textContent = fmtSec(videoDuration);
+  $('out-hl-dur').textContent = fmtSec(hlDur);
+  $('out-ratio').textContent = pct + '%';
+  $('out-cost').textContent = statusData.estimated_cost_usd != null ? `$${parseFloat(statusData.estimated_cost_usd).toFixed(5)}` : '—';
+  $('compression-pct').textContent = pct + '%';
+  $('compression-fill').style.width = pct + '%';
+
+  const dlBtn = $('dl-btn');
+  dlBtn.href = `/download/${jobId}`;
+  dlBtn.download = `highlight_${jobId.slice(0, 8)}.mp4`;
+  $('output-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ════════════════════════════════════════════════════════════
+//  Init
+// ════════════════════════════════════════════════════════════
+applySettingsToUI();
+</script>
+</body>
+</html>

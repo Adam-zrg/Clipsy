@@ -1,0 +1,31 @@
+{
+  "reasoning": "The five analysis windows form a cohesive 10-second narrative with escalating cute/humor value: playful setup, comedic text reaction, introduction of the coin, motivational text, and a peak 'guarding treasure' punchline. The final window has the highest score (7). Using five consecutive 2-second segments covers the full target duration exactly, respects minimum length, stays under the segment cap, and preserves the story flow.",
+  "total_duration_sec": 10,
+  "segments": [
+    {
+      "start_sec": 0,
+      "end_sec": 2,
+      "reason": "Opening hook: fluffy ginger cat with tongue out and human hand interaction establishes playful pet content."
+    },
+    {
+      "start_sec": 2,
+      "end_sec": 4,
+      "reason": "Humor beat: cat stares at a moving hand with the text overlay 'That looks difficult!' adding comedic tension."
+    },
+    {
+      "start_sec": 4,
+      "end_sec": 6,
+      "reason": "Mid-point charm: orange cat rests its paw on a coin while licking its nose, introducing the central prop."
+    },
+    {
+      "start_sec": 6,
+      "end_sec": 8,
+      "reason": "Narrative build: ginger cat focuses on the coin with on-screen text 'I'm gonna give it a go!' raising anticipation."
+    },
+    {
+      "start_sec": 8,
+      "end_sec": 10,
+      "reason": "Peak moment (score 7): fluffy ginger cat balances the coin on its paw and licks its lips, delivering the cute payoff."
+    }
+  ]
+}

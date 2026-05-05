@@ -1,0 +1,86 @@
+[
+  {
+    "timestamp_sec": 0.0,
+    "frame_index": 0,
+    "description": "A person's hand presses against a patterned sofa near a seated ginger cat, which looks down with its tongue slightly visible and one paw extended toward the hand.",
+    "score": 5,
+    "tags": [
+      "cat",
+      "pet",
+      "hand",
+      "sofa",
+      "interaction",
+      "ginger cat",
+      "domestic"
+    ],
+    "tokens_used": 1067
+  },
+  {
+    "timestamp_sec": 2.0,
+    "frame_index": 1,
+    "description": "A cream-colored cat with a red collar lies on a geometric-patterned couch, intently watching a person's hand resting on the fabric, while the on-screen text reads 'That looks difficult!'",
+    "score": 6,
+    "tags": [
+      "cat",
+      "pet",
+      "animals",
+      "cute",
+      "curious",
+      "text overlay",
+      "reaction"
+    ],
+    "tokens_used": 1068
+  },
+  {
+    "timestamp_sec": 4.0,
+    "frame_index": 2,
+    "description": "A ginger cat reclines on a geometric-patterned sofa while pinning a small round silver disc beneath its front paw and licking its foreleg.",
+    "score": 6,
+    "tags": [
+      "cat",
+      "ginger cat",
+      "pet",
+      "couch",
+      "holding object",
+      "disc",
+      "licking",
+      "cute",
+      "domestic"
+    ],
+    "tokens_used": 1255
+  },
+  {
+    "timestamp_sec": 6.0,
+    "frame_index": 3,
+    "description": "A ginger cat rests on a geometric-patterned couch with its paw holding a coin, appearing to examine it curiously while on-screen text reads, \"I'm gonna give it a go!\"",
+    "score": 7,
+    "tags": [
+      "cat",
+      "pet",
+      "coin",
+      "cute",
+      "funny",
+      "animal humor",
+      "curiosity"
+    ],
+    "tokens_used": 703
+  },
+  {
+    "timestamp_sec": 8.0,
+    "frame_index": 4,
+    "description": "A cream-colored cat lies on a geometric-patterned bedspread with a silver coin balanced on its front paw, its tongue slightly sticking out in concentration.",
+    "score": 8,
+    "tags": [
+      "cat",
+      "pet",
+      "coin",
+      "cute",
+      "funny",
+      "tongue",
+      "bed",
+      "animal",
+      "balancing"
+    ],
+    "tokens_used": 1150
+  }
+]

@@ -1,0 +1,5 @@
+file 'C:\Codes\Clipsy\temp\3ce6cfcb-d978-4b45-b999-6707f467a64d\clip_000.mp4'
+file 'C:\Codes\Clipsy\temp\3ce6cfcb-d978-4b45-b999-6707f467a64d\clip_001.mp4'
+file 'C:\Codes\Clipsy\temp\3ce6cfcb-d978-4b45-b999-6707f467a64d\clip_002.mp4'
+file 'C:\Codes\Clipsy\temp\3ce6cfcb-d978-4b45-b999-6707f467a64d\clip_003.mp4'
+file 'C:\Codes\Clipsy\temp\3ce6cfcb-d978-4b45-b999-6707f467a64d\clip_004.mp4'
