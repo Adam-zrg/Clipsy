@@ -6,14 +6,15 @@ A local tool that takes a video file and a natural language prompt and outputs a
 
 - Python 3.11+
 - ffmpeg + ffprobe in PATH
-- A Zhipu AI API key (https://open.bigmodel.cn)
+- AI API key with image input
 
 ## Setup
 
 ```bash
-cd glm-highlighter
-pip install fastapi uvicorn python-multipart zhipuai python-dotenv
-uvicorn main:app --reload
+python -m venv .venv
+.venv\Scripts\activate
+pip install fastapi uvicorn python-multipart openai python-dotenv
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 # open http://localhost:8000
 ```
 
