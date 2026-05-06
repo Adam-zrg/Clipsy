@@ -1,6 +1,4 @@
-# GLM Video Highlighter
-
-A local tool that takes a video file and a natural language prompt and outputs a trimmed highlight reel using Zhipu AI GLM-4V for scene analysis.
+# Clipsy Video Highlighter
 
 ## Requirements
 
