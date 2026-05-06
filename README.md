@@ -18,7 +18,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ## How it works
 
-1. **Frame extraction** — ffmpeg pulls one frame every 2 seconds
-2. **Scene analysis** — GLM-4V-Flash rates each frame (score 1–10) and describes it
-3. **Cut planning** — GLM-4-Flash selects the best segments to match your prompt
+1. **Frame extraction** — ffmpeg fragments the video into frames with lower qualities (to reduce token usage)
+2. **Scene analysis** — the model rates each frame (score 1–10) and describes it
+3. **Cut planning** — the model selects the best segments to match your prompt
 4. **Cut + merge** — ffmpeg cuts clips and merges them with an audio fade-out
