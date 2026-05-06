@@ -1,0 +1,68 @@
+{
+  "date": "2026-05-06T09:38:45",
+  "endpoint": "https://taotoken.net/api/v1",
+  "model": "kimi-k2.6",
+  "safe_batch_limit": 20,
+  "batches": [
+    {
+      "batch_size": 6,
+      "wall_sec": 24.09,
+      "avg_latency_sec": 17.14,
+      "min_latency_sec": 12.98,
+      "max_latency_sec": 23.11,
+      "ok": 6,
+      "errors": 0,
+      "error_sample": null
+    },
+    {
+      "batch_size": 9,
+      "wall_sec": 29.58,
+      "avg_latency_sec": 18.74,
+      "min_latency_sec": 11.13,
+      "max_latency_sec": 29.56,
+      "ok": 9,
+      "errors": 0,
+      "error_sample": null
+    },
+    {
+      "batch_size": 12,
+      "wall_sec": 28.44,
+      "avg_latency_sec": 16.23,
+      "min_latency_sec": 12.12,
+      "max_latency_sec": 28.43,
+      "ok": 12,
+      "errors": 0,
+      "error_sample": null
+    },
+    {
+      "batch_size": 15,
+      "wall_sec": 35.74,
+      "avg_latency_sec": 22.42,
+      "min_latency_sec": 11.2,
+      "max_latency_sec": 35.72,
+      "ok": 15,
+      "errors": 0,
+      "error_sample": null
+    },
+    {
+      "batch_size": 18,
+      "wall_sec": 25.9,
+      "avg_latency_sec": 18.3,
+      "min_latency_sec": 12.75,
+      "max_latency_sec": 25.85,
+      "ok": 18,
+      "errors": 0,
+      "error_sample": null
+    },
+    {
+      "batch_size": 20,
+      "wall_sec": 31.91,
+      "avg_latency_sec": 18.58,
+      "min_latency_sec": 10.84,
+      "max_latency_sec": 31.84,
+      "ok": 20,
+      "errors": 0,
+      "error_sample": null
+    }
+  ]
+}

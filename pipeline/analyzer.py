@@ -1,15 +1,15 @@
 import asyncio
 import base64
 import json
-import os
 import re
+import time
 from pathlib import Path
 
 TEMP_DIR = Path("temp")
 
 SYSTEM_PROMPT = (
     "You are a video analyst. Describe this video frame concisely in 1-2 sentences. "
-    "Rate its 'highlight value' from 1-10 based on visual interest, action, emotion, or importance. "
+    "Rate its editing relevance from 1-10 based on visual clarity, content, action, or narrative value. "
     'Respond ONLY as JSON: {"description": "...", "score": N, "tags": [...]}'
 )
 
@@ -25,18 +25,24 @@ def _encode_image(path: str) -> str:
 
 
 def _parse_json_from_text(text: str) -> dict:
+    text = text.strip()
+    # strip markdown fences (```json ... ``` or ``` ... ```)
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    text = text.strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             return json.loads(match.group())
+        print(f"[analyzer] JSON parse failed, raw response: {text[:200]!r}")
         raise
 
 
-def _call_vision(client, frame: dict, prompt: str, model: str) -> tuple[str, int]:
+async def _call_vision_async(client, frame: dict, prompt: str, model: str) -> tuple[str, int]:
     b64 = _encode_image(frame["frame_path"])
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model=model,
         messages=[
             {
@@ -56,32 +62,34 @@ def _call_vision(client, frame: dict, prompt: str, model: str) -> tuple[str, int
     return content, tokens
 
 
-def _analyze_frame_sync(client, frame: dict, model: str) -> dict:
+async def _analyze_frame_async(client, frame: dict, model: str) -> dict:
+    idx = frame["frame_index"]
+    t0 = time.perf_counter()
     try:
-        content, tokens = _call_vision(client, frame, SYSTEM_PROMPT, model)
+        content, tokens = await _call_vision_async(client, frame, SYSTEM_PROMPT, model)
+        elapsed = time.perf_counter() - t0
+        parse_ok = True
         try:
             data = _parse_json_from_text(content)
         except (json.JSONDecodeError, AttributeError):
-            try:
-                content2, tokens2 = _call_vision(client, frame, STRICT_PROMPT, model)
-                tokens += tokens2
-                data = _parse_json_from_text(content2)
-            except Exception:
-                data = {"description": content[:120] if content else "Parse error", "score": 5, "tags": []}
+            parse_ok = False
+            data = {"description": content[:120] if content else "Parse error", "score": 5, "tags": []}
 
+        print(f"[analyzer] frame {idx:3d} | {elapsed:.2f}s | {tokens} tokens | parse={'ok' if parse_ok else 'FALLBACK'}")
         return {
             "timestamp_sec": frame["timestamp_sec"],
-            "frame_index": frame["frame_index"],
+            "frame_index": idx,
             "description": str(data.get("description", "")),
             "score": int(data.get("score", 5)),
             "tags": list(data.get("tags", [])),
             "tokens_used": tokens,
         }
     except Exception as e:
-        print(f"[analyzer] frame {frame['frame_index']} error: {e}")
+        elapsed = time.perf_counter() - t0
+        print(f"[analyzer] frame {idx:3d} | {elapsed:.2f}s | ERROR: {e}")
         return {
             "timestamp_sec": frame["timestamp_sec"],
-            "frame_index": frame["frame_index"],
+            "frame_index": idx,
             "description": "Analysis failed",
             "score": 5,
             "tags": [],
@@ -95,22 +103,28 @@ async def analyze_frames(
     api_key: str,
     model: str,
     base_url: str,
+    batch_size: int = 20,
 ) -> tuple[list[dict], int]:
-    from openai import OpenAI
+    from openai import AsyncOpenAI
 
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     results: list[dict] = []
     total_tokens = 0
-    batch_size = 5
 
     for i in range(0, len(frames), batch_size):
         batch = frames[i : i + batch_size]
+        batch_num = i // batch_size + 1
+        total_batches = (len(frames) + batch_size - 1) // batch_size
+        print(f"[analyzer] batch {batch_num}/{total_batches} — {len(batch)} frames starting at frame {batch[0]['frame_index']}")
+        t_batch = time.perf_counter()
         batch_results = await asyncio.gather(
-            *[asyncio.to_thread(_analyze_frame_sync, client, f, model) for f in batch]
+            *[_analyze_frame_async(client, f, model) for f in batch]
         )
+        batch_tokens = sum(r["tokens_used"] for r in batch_results)
+        print(f"[analyzer] batch {batch_num}/{total_batches} done in {time.perf_counter()-t_batch:.2f}s | {batch_tokens} tokens")
         results.extend(batch_results)
-        total_tokens += sum(r["tokens_used"] for r in batch_results)
+        total_tokens += batch_tokens
 
         if i + batch_size < len(frames):
             await asyncio.sleep(0.5)
@@ -120,4 +134,5 @@ async def analyze_frames(
     with open(analysis_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
+    await client.close()
     return results, total_tokens

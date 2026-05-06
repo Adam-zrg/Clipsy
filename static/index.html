@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Clipsy — Video Highlighter</title>
+  <title>Clipsy — Video Editor</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -177,8 +177,6 @@
 
     #duration-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 20px; padding: 4px 12px; font-size: .83rem; font-weight: 600; color: #c4b5fd; margin-bottom: 10px; }
 
-    #preview-player { width: 100%; border-radius: 8px; background: #000; margin-top: 12px; display: none; }
-    #preview-player.show { display: block; }
 
     #output-card { text-align: center; }
     .compression-bar-wrap { margin-top: 16px; }
@@ -192,8 +190,8 @@
 <!-- ─── Header ─── -->
 <header>
   <div class="title-group">
-    <h1>Clipsy <span>Highlighter</span></h1>
-    <p>Drop a video · describe what you want · get an AI-edited highlight reel</p>
+    <h1>Clipsy <span>Editor</span></h1>
+    <p>Drop a video · describe your edit · get a precise AI-made montage</p>
   </div>
   <button id="settings-toggle" title="AI Settings">⚙</button>
 </header>
@@ -212,16 +210,36 @@
       </div>
       <div class="field-wrap">
         <label for="s-model">Model ID</label>
-        <input type="text" id="s-model" placeholder="kimi-k2" />
+        <input type="text" id="s-model" placeholder="kimi-k2.6" />
       </div>
       <div class="field-wrap">
         <label for="s-baseurl">Base URL</label>
-        <input type="url" id="s-baseurl" placeholder="https://api.moonshot.cn/v1" />
+        <input type="url" id="s-baseurl" placeholder="https://taotoken.net/api/v1" />
+      </div>
+      <div class="field-wrap">
+        <label for="s-frames-per-min">Frames / minute</label>
+        <input type="number" id="s-frames-per-min" min="1" max="120" placeholder="12" />
+      </div>
+      <div class="field-wrap">
+        <label for="s-batch-size">Batch size</label>
+        <input type="number" id="s-batch-size" min="1" max="50" placeholder="20" />
+      </div>
+      <div class="field-wrap">
+        <label for="s-resolution">Max resolution</label>
+        <select id="s-resolution">
+          <option value="original">Original</option>
+          <option value="1280x720">1280 × 720</option>
+          <option value="854x480">854 × 480</option>
+          <option value="640x360" selected>640 × 360</option>
+          <option value="320x180">320 × 180</option>
+        </select>
       </div>
     </div>
     <div class="badge-row">
       <div class="badge" id="key-badge">🔑 No key set</div>
-      <div class="badge" id="model-badge">🤖 kimi-k2</div>
+      <div class="badge" id="model-badge">🤖 kimi-k2.6</div>
+      <div class="badge" id="s-time-est">⏱ —</div>
+      <div class="badge" id="s-token-est">🪙 —</div>
       <button class="btn btn-primary btn-sm" id="save-settings" style="margin-left:auto">Save</button>
     </div>
   </div>
@@ -231,6 +249,7 @@
 <div id="status-banner">
   <div class="spinner" id="banner-spinner"></div>
   <span id="banner-text">Analyzing…</span>
+  <span id="banner-elapsed" style="margin-left:auto;font-size:.8rem;opacity:.7;display:none"></span>
 </div>
 
 <!-- ─── SECTION 1: Upload ─── -->
@@ -250,10 +269,12 @@
     </div>
 
     <label for="prompt-input" style="margin-top:16px">Editing prompt</label>
-    <textarea id="prompt-input" rows="2" placeholder="Make a 30 second highlight reel of the best moments"></textarea>
+    <textarea id="prompt-input" rows="2" placeholder="Keep only the scenes where people are talking, cut to 2 minutes"></textarea>
 
     <div class="btn-row">
       <button class="btn btn-primary" id="analyze-btn" disabled>✨ Analyze</button>
+      <span id="analyze-time-est" style="font-size:.82rem;color:var(--muted);display:none"></span>
+      <span id="analyze-token-est" style="font-size:.82rem;color:var(--muted);display:none"></span>
     </div>
   </div>
 </section>
@@ -277,6 +298,10 @@
       <span class="stat-label">Est. API cost</span>
       <span class="stat-value" id="stat-cost">—</span>
     </div>
+    <div class="stat-item">
+      <span class="stat-label">Tokens used</span>
+      <span class="stat-value" id="stat-tokens">—</span>
+    </div>
     <div class="stat-item" style="flex:1">
       <span class="stat-label">Reasoning</span>
       <span class="stat-value" id="stat-reasoning" style="font-weight:400;font-size:.83rem;color:var(--muted)">—</span>
@@ -284,7 +309,7 @@
   </div>
 
   <div class="card">
-    <h2>Scene timeline <span style="font-size:.8rem;font-weight:400;color:var(--muted)">(hover · green = high score · white outline = selected)</span></h2>
+    <h2>Scene timeline <span style="font-size:.8rem;font-weight:400;color:var(--muted)">(hover · green = high relevance · white outline = selected)</span></h2>
     <div id="timeline-wrap"><div id="timeline"></div></div>
   </div>
 
@@ -303,10 +328,8 @@
   <div class="card">
     <h2>Output</h2>
     <div class="btn-row">
-      <button class="btn btn-outline active" id="preview-btn">▶ Preview in browser</button>
       <button class="btn btn-primary" id="render-btn">🎞 Render video</button>
     </div>
-    <video id="preview-player" controls></video>
     <div class="progress-wrap hidden" id="render-progress-wrap" style="margin-top:14px">
       <div class="progress-bar" id="render-progress-bar"></div>
     </div>
@@ -317,7 +340,7 @@
 <!-- ─── SECTION 4: Download ─── -->
 <section class="section hidden" id="output-section">
   <div class="card" id="output-card">
-    <h2>Your highlight reel is ready</h2>
+    <h2>Your montage is ready</h2>
     <div class="btn-row" style="justify-content:center;margin-bottom:20px">
       <a id="dl-btn" class="btn btn-success" download>⬇ Download MP4</a>
     </div>
@@ -363,21 +386,78 @@ function loadSettings() {
 }
 function saveSettings(s) { localStorage.setItem(LS_KEY, JSON.stringify(s)); }
 
+const LATENCY_PER_BATCH_SEC = 75;
+const TOKENS_BY_RESOLUTION  = {
+  'original': 606,
+  '1280x720': 420,
+  '854x480':  260,
+  '640x360':  180,
+  '320x180':  90,
+};
+
 function getSettings() {
   const s = loadSettings();
   return {
-    apiKey:  s.apiKey  || '',
-    model:   s.model   || 'kimi-k2',
-    baseUrl: s.baseUrl || 'https://api.moonshot.cn/v1',
+    apiKey:        s.apiKey        || '',
+    model:         s.model         || 'kimi-k2.6',
+    baseUrl:       s.baseUrl       || 'https://taotoken.net/api/v1',
+    framesPerMin:  s.framesPerMin  || 12,
+    batchSize:     s.batchSize     || 20,
+    resolution:    s.resolution    || '640x360',
   };
 }
 
 function applySettingsToUI() {
   const s = getSettings();
-  $('s-apikey').value  = s.apiKey;
-  $('s-model').value   = s.model   || 'kimi-k2';
-  $('s-baseurl').value = s.baseUrl || 'https://api.moonshot.cn/v1';
+  $('s-apikey').value         = s.apiKey;
+  $('s-model').value          = s.model        || 'kimi-k2.6';
+  $('s-baseurl').value        = s.baseUrl       || 'https://taotoken.net/api/v1';
+  $('s-frames-per-min').value = s.framesPerMin  || 12;
+  $('s-batch-size').value     = s.batchSize     || 20;
+  $('s-resolution').value     = s.resolution    || '640x360';
   updateBadges(s);
+  updateSettingsEstimate();
+}
+
+function estimateSec(durationSec, framesPerMin, batchSize) {
+  const frames  = (durationSec / 60) * framesPerMin;
+  const batches = Math.ceil(frames / batchSize);
+  return batches * LATENCY_PER_BATCH_SEC;
+}
+
+function fmtTokens(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+
+function updateSettingsEstimate() {
+  const { framesPerMin: fpm, batchSize: bs, resolution: res } = getLiveSettings();
+  const tokPerFrame = TOKENS_BY_RESOLUTION[res] || 606;
+  const estSec      = estimateSec(60, fpm, bs);
+  const tokens      = fpm * tokPerFrame;
+  $('s-time-est').textContent  = `⏱ ~${fmtSec(estSec)} / min of video`;
+  $('s-token-est').textContent = `🪙 ~${fmtTokens(tokens)} tokens / min`;
+}
+
+function getLiveSettings() {
+  const fpm = parseInt($('s-frames-per-min').value) || 60;
+  const bs  = parseInt($('s-batch-size').value)     || 20;
+  const res = $('s-resolution').value               || '640x360';
+  return { framesPerMin: fpm, batchSize: bs, resolution: res };
+}
+
+function updateAnalyzeEstimate() {
+  const elTime   = $('analyze-time-est');
+  const elTokens = $('analyze-token-est');
+  if (!videoDuration) {
+    elTime.style.display = elTokens.style.display = 'none';
+    return;
+  }
+  const { framesPerMin, batchSize, resolution } = getLiveSettings();
+  const tokPerFrame = TOKENS_BY_RESOLUTION[resolution] || 606;
+  const totalFrames = (videoDuration / 60) * framesPerMin;
+  elTime.textContent   = `~${fmtSec(estimateSec(videoDuration, framesPerMin, batchSize))} estimated`;
+  elTokens.textContent = `· ~${fmtTokens(Math.round(totalFrames * tokPerFrame))} tokens`;
+  elTime.style.display = elTokens.style.display = '';
 }
 
 function updateBadges(s) {
@@ -390,7 +470,7 @@ function updateBadges(s) {
     kb.textContent = '🔑 No key — will use server .env';
     kb.className = 'badge warn';
   }
-  mb.textContent = '🤖 ' + (s.model || 'kimi-k2');
+  mb.textContent = '🤖 ' + (s.model || 'kimi-k2.6');
   mb.className = 'badge ok';
 }
 
@@ -410,17 +490,25 @@ $('toggle-key-vis').addEventListener('click', () => {
 // Save settings
 $('save-settings').addEventListener('click', () => {
   const s = {
-    apiKey:  $('s-apikey').value.trim(),
-    model:   $('s-model').value.trim() || 'kimi-k2',
-    baseUrl: $('s-baseurl').value.trim() || 'https://api.moonshot.cn/v1',
+    apiKey:       $('s-apikey').value.trim(),
+    model:        $('s-model').value.trim()             || 'kimi-k2.6',
+    baseUrl:      $('s-baseurl').value.trim()           || 'https://taotoken.net/api/v1',
+    framesPerMin: parseInt($('s-frames-per-min').value) || 12,
+    batchSize:    parseInt($('s-batch-size').value)     || 20,
+    resolution:   $('s-resolution').value               || '640x360',
   };
   saveSettings(s);
   updateBadges(s);
-  // Visual feedback
+  updateSettingsEstimate();
+  updateAnalyzeEstimate();
   const btn = $('save-settings');
   btn.textContent = '✓ Saved';
   setTimeout(() => { btn.textContent = 'Save'; }, 1500);
 });
+
+$('s-frames-per-min').addEventListener('input', () => { updateSettingsEstimate(); updateAnalyzeEstimate(); });
+$('s-batch-size').addEventListener('input', () => { updateSettingsEstimate(); updateAnalyzeEstimate(); });
+$('s-resolution').addEventListener('change', () => { updateSettingsEstimate(); updateAnalyzeEstimate(); });
 
 // ════════════════════════════════════════════════════════════
 //  State
@@ -431,8 +519,6 @@ let cutPlan = {};
 let videoDuration = 0;
 let currentFile = null;
 let pollInterval = null;
-let previewSegments = [];
-let previewSegIdx = 0;
 
 // ════════════════════════════════════════════════════════════
 //  Helpers
@@ -461,6 +547,26 @@ function setBanner(text, loading = true, error = false) {
 }
 function clearBanner() { $('status-banner').classList.remove('show', 'error'); }
 
+let _elapsedTimer = null;
+let _elapsedStart = 0;
+
+function startElapsed() {
+  _elapsedStart = Date.now();
+  const el = $('banner-elapsed');
+  el.style.display = '';
+  el.textContent = '0s';
+  if (_elapsedTimer) clearInterval(_elapsedTimer);
+  _elapsedTimer = setInterval(() => {
+    const s = Math.floor((Date.now() - _elapsedStart) / 1000);
+    el.textContent = s < 60 ? `${s}s` : `${Math.floor(s/60)}m ${s%60}s`;
+  }, 1000);
+}
+
+function stopElapsed() {
+  if (_elapsedTimer) { clearInterval(_elapsedTimer); _elapsedTimer = null; }
+  $('banner-elapsed').style.display = 'none';
+}
+
 // ════════════════════════════════════════════════════════════
 //  Drop zone
 // ════════════════════════════════════════════════════════════
@@ -479,6 +585,16 @@ function setFile(f) {
   $('file-info').classList.add('show');
   dropZone.querySelector('p').textContent = 'File selected — drop another to change';
   $('analyze-btn').disabled = false;
+
+  const url = URL.createObjectURL(f);
+  const vid = document.createElement('video');
+  vid.preload = 'metadata';
+  vid.onloadedmetadata = () => {
+    videoDuration = vid.duration;
+    URL.revokeObjectURL(url);
+    updateAnalyzeEstimate();
+  };
+  vid.src = url;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -486,11 +602,12 @@ function setFile(f) {
 // ════════════════════════════════════════════════════════════
 $('analyze-btn').addEventListener('click', async () => {
   if (!currentFile) return;
-  const prompt = $('prompt-input').value.trim() || 'Make a 30 second highlight reel of the best moments';
+  const prompt = $('prompt-input').value.trim() || 'Edit the video according to what looks most relevant';
   const cfg = getSettings();
 
   $('analyze-btn').disabled = true;
   setBanner('Uploading & extracting frames…');
+  startElapsed();
 
   const fd = new FormData();
   fd.append('video', currentFile);
@@ -498,6 +615,9 @@ $('analyze-btn').addEventListener('click', async () => {
   fd.append('api_key', cfg.apiKey);
   fd.append('model', cfg.model);
   fd.append('base_url', cfg.baseUrl);
+  fd.append('frames_per_min', cfg.framesPerMin);
+  fd.append('batch_size', cfg.batchSize);
+  fd.append('resolution', cfg.resolution);
 
   try {
     setBanner('Analyzing scenes with ' + cfg.model + '…');
@@ -513,10 +633,12 @@ $('analyze-btn').addEventListener('click', async () => {
     videoDuration = data.video_duration_sec || 0;
 
     renderAnalysis(data);
+    stopElapsed();
     clearBanner();
     show('analysis-section');
     show('actions-section');
   } catch (e) {
+    stopElapsed();
     setBanner('Error: ' + e.message, false, true);
     $('analyze-btn').disabled = false;
   }
@@ -530,6 +652,7 @@ function renderAnalysis(data) {
   $('stat-frames').textContent = (data.frame_count || data.analysis?.length || 0) + ' frames';
   $('stat-model').textContent = data.model || '—';
   $('stat-cost').textContent = data.estimated_cost_usd != null ? `$${data.estimated_cost_usd.toFixed(5)}` : '—';
+  $('stat-tokens').textContent = data.total_tokens != null ? data.total_tokens.toLocaleString() : '—';
   $('stat-reasoning').textContent = data.cut_plan?.reasoning || '—';
 
   renderTimeline(data.analysis || [], data.cut_plan, data.video_duration_sec);
@@ -617,39 +740,10 @@ $('plan-editor').addEventListener('input', () => {
 });
 
 // ════════════════════════════════════════════════════════════
-//  Preview
-// ════════════════════════════════════════════════════════════
-const video = $('preview-player');
-
-$('preview-btn').addEventListener('click', () => {
-  previewSegments = (cutPlan.segments || []).map(s => ({ start: +s.start_sec, end: +s.end_sec }));
-  if (!previewSegments.length) return;
-  video.src = `/video/${jobId}`;
-  video.classList.add('show');
-  previewSegIdx = 0;
-  video.currentTime = previewSegments[0].start;
-  video.play();
-});
-
-video.addEventListener('timeupdate', () => {
-  if (!previewSegments.length) return;
-  const seg = previewSegments[previewSegIdx];
-  if (!seg || video.currentTime < seg.end) return;
-  previewSegIdx++;
-  if (previewSegIdx < previewSegments.length) {
-    video.currentTime = previewSegments[previewSegIdx].start;
-  } else {
-    video.pause();
-    previewSegIdx = 0;
-  }
-});
-
-// ════════════════════════════════════════════════════════════
 //  Render
 // ════════════════════════════════════════════════════════════
 $('render-btn').addEventListener('click', async () => {
   if (!jobId || !cutPlan.segments) return;
-  video.classList.remove('show');
   const cfg = getSettings();
 
   $('render-btn').disabled = true;
@@ -722,7 +816,7 @@ function showOutput(statusData) {
 
   const dlBtn = $('dl-btn');
   dlBtn.href = `/download/${jobId}`;
-  dlBtn.download = `highlight_${jobId.slice(0, 8)}.mp4`;
+  dlBtn.download = `montage_${jobId.slice(0, 8)}.mp4`;
   $('output-section').scrollIntoView({ behavior: 'smooth' });
 }
 

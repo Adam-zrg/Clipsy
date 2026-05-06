@@ -1,12 +1,13 @@
 import asyncio
 import json
 import re
+import time
 from pathlib import Path
 
 TEMP_DIR = Path("temp")
 
 SYSTEM_PROMPT_TEMPLATE = """You are a professional video editor AI.
-Given scene analysis data and a user editing prompt, create an optimal highlight cut plan.
+Given scene analysis data and a user editing prompt, create a precise cut plan that strictly follows the user's instructions.
 
 Return ONLY a single valid JSON object — no markdown fences, no extra text.
 Required format:
@@ -25,7 +26,7 @@ Hard constraints you MUST respect:
 - Maximum 12 segments (keep it coherent)
 - Segments must be in chronological order
 - No overlapping segments
-- Prefer frames with the highest highlight scores
+- Follow the user's instructions literally. Only prioritize high-relevance frames if the user explicitly asks for highlights or a highlight reel.
 """
 
 
@@ -75,8 +76,8 @@ def _parse_plan_json(text: str) -> dict:
         raise
 
 
-def _call_text(client, system_prompt: str, user_content: str, model: str) -> tuple[str, int]:
-    response = client.chat.completions.create(
+async def _call_text_async(client, system_prompt: str, user_content: str, model: str) -> tuple[str, int]:
+    response = await client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -88,45 +89,6 @@ def _call_text(client, system_prompt: str, user_content: str, model: str) -> tup
     return content, tokens
 
 
-def _plan_cuts_sync(
-    analysis: list[dict],
-    prompt: str,
-    job_id: str,
-    api_key: str,
-    model: str,
-    base_url: str,
-) -> dict:
-    from openai import OpenAI
-
-    client = OpenAI(api_key=api_key, base_url=base_url)
-
-    target_sec = _parse_duration_from_prompt(prompt)
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(target_sec=target_sec)
-
-    user_content = (
-        f"User request: {prompt}\n\n"
-        f"Scene analysis ({len(analysis)} frames, one every 2 seconds):\n"
-        + json.dumps(analysis, indent=2, ensure_ascii=False)
-        + f"\n\nCreate a {target_sec}-second highlight cut plan."
-    )
-
-    content, _ = _call_text(client, system_prompt, user_content, model)
-
-    try:
-        plan = _parse_plan_json(content)
-    except (json.JSONDecodeError, AttributeError):
-        retry_system = "Return ONLY the JSON object, no other text:\n" + system_prompt
-        content2, _ = _call_text(client, retry_system, user_content, model)
-        plan = _parse_plan_json(content2)
-
-    plan_path = TEMP_DIR / job_id / "cut_plan.json"
-    plan_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(plan_path, "w", encoding="utf-8") as f:
-        json.dump(plan, f, indent=2, ensure_ascii=False)
-
-    return plan
-
-
 async def plan_cuts(
     analysis: list[dict],
     prompt: str,
@@ -135,7 +97,48 @@ async def plan_cuts(
     model: str,
     base_url: str,
 ) -> dict:
-    return await asyncio.to_thread(_plan_cuts_sync, analysis, prompt, job_id, api_key, model, base_url)
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+
+    target_sec = _parse_duration_from_prompt(prompt)
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(target_sec=target_sec)
+
+    user_content = (
+        f"User request: {prompt}\n\n"
+        f"Scene analysis ({len(analysis)} frames):\n"
+        + json.dumps(analysis, indent=2, ensure_ascii=False)
+        + f"\n\nExecute the user's editing instructions. Target duration: {target_sec} seconds."
+    )
+
+    input_chars = len(user_content) + len(system_prompt)
+    print(f"[planner] input size: {input_chars} chars (~{input_chars//4} tokens est.) | {len(analysis)} frames | target {target_sec}s")
+    t0 = time.perf_counter()
+    content, tokens = await _call_text_async(client, system_prompt, user_content, model)
+    print(f"[planner] API call done in {time.perf_counter()-t0:.2f}s | {tokens} tokens | response {len(content)} chars")
+
+    parse_ok = True
+    try:
+        plan = _parse_plan_json(content)
+    except (json.JSONDecodeError, AttributeError):
+        parse_ok = False
+        print(f"[planner] JSON parse failed, retrying. Raw response: {content[:300]!r}")
+        retry_system = "Return ONLY the JSON object, no other text:\n" + system_prompt
+        t1 = time.perf_counter()
+        content2, tokens2 = await _call_text_async(client, retry_system, user_content, model)
+        print(f"[planner] retry done in {time.perf_counter()-t1:.2f}s | {tokens2} tokens")
+        plan = _parse_plan_json(content2)
+
+    print(f"[planner] plan parsed ok={parse_ok} | {len(plan.get('segments', []))} segments")
+
+    await client.close()
+
+    plan_path = TEMP_DIR / job_id / "cut_plan.json"
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(plan_path, "w", encoding="utf-8") as f:
+        json.dump(plan, f, indent=2, ensure_ascii=False)
+
+    return plan
 
 
 def validate_cut_plan(plan: dict, video_duration: float | None = None) -> list[str]:

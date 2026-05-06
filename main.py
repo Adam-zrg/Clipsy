@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-app = FastAPI(title="Clipsy — Video Highlighter")
+app = FastAPI(title="Clipsy — Video Editor")
 
 TEMP_DIR = Path("temp")
 OUTPUTS_DIR = Path("outputs")
@@ -22,8 +22,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 jobs: dict = {}
 
-DEFAULT_MODEL = "kimi-k2"
-DEFAULT_BASE_URL = "https://api.moonshot.cn/v1"
+DEFAULT_MODEL = "kimi-k2.6"
+DEFAULT_BASE_URL = "https://taotoken.net/api/v1"
 
 
 def _resolve_credentials(api_key: str, model: str, base_url: str) -> tuple[str, str, str]:
@@ -59,6 +59,9 @@ async def analyze(
     api_key: str = Form(""),
     model: str = Form(""),
     base_url: str = Form(""),
+    frames_per_min: int = Form(12),
+    batch_size: int = Form(20),
+    resolution: str = Form("640x360"),
 ):
     resolved_key, resolved_model, resolved_url = _resolve_credentials(api_key, model, base_url)
 
@@ -83,25 +86,36 @@ async def analyze(
     }
 
     try:
+        import time as _time
         from pipeline.extractor import extract_frames, get_video_duration
         from pipeline.analyzer import analyze_frames
         from pipeline.planner import plan_cuts
 
+        _t0 = _time.perf_counter()
+
         video_duration = get_video_duration(str(video_path))
         jobs[job_id]["video_duration_sec"] = video_duration
+        print(f"[timing] video_info     : {_time.perf_counter()-_t0:.2f}s")
 
-        frames = extract_frames(str(video_path), job_id)
+        _t = _time.perf_counter()
+        frames = extract_frames(str(video_path), job_id, frames_per_min, resolution)
+        print(f"[timing] extract_frames : {_time.perf_counter()-_t:.2f}s  ({len(frames)} frames)")
         jobs[job_id]["status"] = "analyzing"
         jobs[job_id]["frame_count"] = len(frames)
 
+        _t = _time.perf_counter()
         analysis, total_tokens = await analyze_frames(
-            frames, job_id, resolved_key, resolved_model, resolved_url
+            frames, job_id, resolved_key, resolved_model, resolved_url, batch_size
         )
+        print(f"[timing] analyze_frames : {_time.perf_counter()-_t:.2f}s  ({total_tokens} tokens)")
         jobs[job_id]["status"] = "planning"
 
+        _t = _time.perf_counter()
         cut_plan = await plan_cuts(
             analysis, prompt, job_id, resolved_key, resolved_model, resolved_url
         )
+        print(f"[timing] plan_cuts      : {_time.perf_counter()-_t:.2f}s")
+        print(f"[timing] TOTAL          : {_time.perf_counter()-_t0:.2f}s")
 
         estimated_cost = round(total_tokens * 0.001 / 1000, 5)
 
@@ -166,7 +180,7 @@ def _do_render(job_id: str, cut_plan: dict) -> None:
         from pipeline.cutter import cut_and_merge
 
         video_path = jobs[job_id]["video_path"]
-        output_name = f"{job_id[:8]}_highlight"
+        output_name = f"{job_id[:8]}_montage"
         output_path = cut_and_merge(video_path, cut_plan["segments"], output_name, job_id)
 
         jobs[job_id]["output_path"] = output_path
